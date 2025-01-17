@@ -1,0 +1,33 @@
+{
+  "name": "svelte-css-rune",
+  "module": "dist/esm/index.js",
+  "type": "module",
+  "version": "0.1.0",
+  "scripts": {
+    "prebuild": "rm -rf dist/",
+    "build": "npm run build:cjs && npm run build:esm",
+    "build:cjs": "tsc --module commonjs --target es6 --outDir dist/cjs --declaration true",
+    "build:esm": "tsc --module esnext --target esnext --outDir dist/esm",
+    "dev": "npm run build:esm -- -w"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "estree-walker": "^3.0.3",
+    "typescript": "^5.7.3",
+    "zimmerframe": "^1.1.2"
+  },
+  "peerDependencies": {
+    "svelte": "^5.15.0"
+  },
+  "dependencies": {
+    "magic-string": "^0.30.17"
+  }, 
+  "types": "./types/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/esm/index.js",
+      "require": "./dist/cjs/index.js",
+      "types": "./index.d.ts"
+    }
+  }
+}
