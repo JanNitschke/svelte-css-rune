@@ -154,7 +154,8 @@ export const transformCSS = (
 	magicContent: MagicString,
 	globalClasses: Map<string, { start: number; end: number }>,
 	usedClasses: Set<string>, 
-	hash: string
+	hash: string,
+	fileName?: string|undefined
 ):  Record<string, string> => {
 	const allClasses = new Set<string>();
 	const transformedClasses: Record<string, string> = {};
@@ -176,6 +177,11 @@ export const transformCSS = (
 				const transformed = next(state);
 				if (transformed) {
 					if (ruleClasses.length > 0 && ruleClasses.some((val) => usedClasses.has(val))) {
+						const duplications = ruleClasses.filter((val) => usedClasses.has(val));
+						if(duplications.length > 1){
+							const line = source.substring(0, node.start).split("\n").length;
+							console.warn(`[css-rune]: ${fileName ?? "unknown file"}(${line}): This css rule uses multiple classes that are used native and by runes (${duplications.map(d => "." + d).join(", ")}). This can lead to unexpected behavior. Consider using unique class names for each class. For details see https://github.com/JanNitschke/svelte-css-rune?tab=readme-ov-file#Limitations`);
+						}
 						magicContent.appendLeft(
 							node.end,
 							`\n${source.substring(node.start, node.end)}`

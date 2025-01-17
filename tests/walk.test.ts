@@ -1,4 +1,4 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it, spyOn } from "bun:test";
 import { findReferencedClasses, transformCSS, transformRunes } from "../lib/walk.ts";
 import { parse } from "svelte/compiler";
 import { baseStyles, source, used } from "./dummy.ts";
@@ -83,8 +83,7 @@ describe("transformCSS", () => {
 		return {content: magicContent.toString(), transformedClasses};
 	}
 
-	const loc = {start: 0, end: 0}; 
-	const sourceClasses = new Map([["test", loc], ["test2", loc], ["test3", loc]]);
+	const spy = spyOn(console, "warn");
 
 	it("should transform only used classes", () => {
 		const {content} = run(baseStyles, new Map(), new Set([]));
@@ -108,6 +107,15 @@ describe("transformCSS", () => {
 		const {content} = run(used + baseStyles);
 		expect(content).toInclude(".test{");
 		expect(content).toInclude(":global(.test-hash)");
+	});
+
+	it("should not warn if no rule uses multiple classes that are used by rune and natively", () => {
+		expect(spy).toHaveBeenCalledTimes(0);
+	});
+
+	it("should warn if rule uses multiple classes that are used by rune and natively", () => {
+		run("<style>.test.test2{}</style>", new Map([["test", {start: 0, end: 0}], ["test2", {start: 0, end: 0}]]), new Set(["test", "test2"]));
+		expect(spy).toHaveBeenCalledTimes(1);
 	});
 });
 

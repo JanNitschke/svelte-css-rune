@@ -2,10 +2,7 @@ import { parse, preprocess } from 'svelte/compiler';
 import type { AST, PreprocessorGroup, MarkupPreprocessor } from 'svelte/compiler';
 import { findReferencedClasses, transformCSS, transformRunes } from './walk.js';
 import MagicString from 'magic-string';
-import crypto from "node:crypto";
 
-
-const HASH_LENGTH = 2;
 
 declare global {
 
@@ -59,7 +56,7 @@ const markup: (options: Options) => MarkupPreprocessor = ({hash}) => ({ content,
 		}
 		const hashed = hash(filename + content);
 		const magicContent = new MagicString(content);
-		const transformedClasses = transformCSS(ast, content, magicContent, classes, usedClasses, hashed);
+		const transformedClasses = transformCSS(ast, content, magicContent, classes, usedClasses, hashed, filename);
 		transformRunes(ast, magicContent, classes, transformedClasses);
 		const code = magicContent.toString();
 
