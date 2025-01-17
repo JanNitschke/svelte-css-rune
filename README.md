@@ -124,7 +124,7 @@ You can use the $css rune inside of script tags, script module tags and markup. 
 
 ### Errors and Warnings
 
-This preprocessor does not break or disable sveltes unused class warnings. If the rune is misused or references a class that does not exist. Errors are pretty and point you to the exact location of the issue. 
+This preprocessor does not break or disable sveltes unused class warnings. It will error the rune is misused or references a class that does not exist. Errors are pretty and point you to the exact location of the issue. 
 ```
 /example/Component.svelte
 
