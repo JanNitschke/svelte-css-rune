@@ -15,8 +15,8 @@ declare global {
 	 * <Child class={$css("class")} />
 	 * ```
 	 *
-	 * @param classNames The names value
+	 * @param classNames The name of the classes you want to use
 	 */
-	function $css<T>(classNames: T): T;
+	function $css<T extends string>(classNames: T): T;
 }
 export {};

@@ -23,9 +23,9 @@ declare global {
 	 * <Child class={$css("class")} />
 	 * ```
 	 *
-	 * @param initial The initial value
+	 * @param classNames The name of the classes you want to use
 	 */
-	function $css<T>(initial: T): T;
+	function $css<T extends string>(classNames: T): T;
 }
 
 const regex_return_characters = /\r/g;
