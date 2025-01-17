@@ -180,7 +180,7 @@ export const transformCSS = (
 						const duplications = ruleClasses.filter((val) => usedClasses.has(val));
 						if(duplications.length > 1){
 							const line = source.substring(0, node.start).split("\n").length;
-							console.warn(`[css-rune]: ${fileName ?? "unknown file"}(${line}): This css rule uses multiple classes that are used native and by runes (${duplications.map(d => "." + d).join(", ")}). This can lead to unexpected behavior. Consider using unique class names for each class. For details see https://github.com/JanNitschke/svelte-css-rune#Limitations`);
+							console.warn(`[css-rune]: ${fileName ?? "unknown file"}(${line}): This css rule uses multiple classes that are used native and by runes (${duplications.map(d => "." + d).join(", ")}). This can lead to unexpected behavior. Consider using unique class names for each class. For details see https://github.com/JanNitschke/svelte-css-rune#rules-combining-multiple-classes-with-mixed-usage`);
 						}
 						magicContent.appendLeft(
 							node.end,
