@@ -9,7 +9,7 @@ declare global {
 	 * Example:
 	 * ```ts
 	 * let dark = boolean;
-	 * let class = dark?$css(black):$css(white);
+	 * let class = dark?$css("black"):$css("white");
 	 * ```
 	 * ```svelte
 	 * <Child class={$css("class")} />

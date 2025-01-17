@@ -8,7 +8,8 @@ const config = {
 	// for more information about preprocessors
 
 	preprocess: [
-		processCssRune(),
+		vitePreprocess(),
+		processCssRune()
 	],
 
 	kit: {
