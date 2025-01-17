@@ -2,6 +2,7 @@
 
 This library adds a simple way to pass style between components, the `$css` rune. It utilizes a preprocessor to achieve this. 
 
+
 ## Example
 Child.svelte
 ```svelte
@@ -32,6 +33,8 @@ Parent.svelte
 ```
 
 # Install
+
+Svelte 5 is required, but it works with rune and legacy syntax.
 
 1) Add svelte-css-rune as devDependency. Use the command that fits your package manager.
 	```
@@ -287,3 +290,16 @@ Just wrap all usages of these classes with the $css rune. Creating a renamed cop
 ## building and testing
 
 You should be able to build this library with node or bun via the build script. It compiles to ESM and CommonJS. Bun is required to run the tests.
+
+# Comparison to svelte-preprocess-cssmodules
+
+svelte-preprocess-cssmodules can be used to archive something similar. But its main goal is to provide css modules support, not just a way to pass classes between components.
+
+It generates unique class names for each class in a style tag. It transforms all styles in a file to use these generated class names and parses/replaces much more of your code. This library mostly replaces sveltes style handling. It also treats the class prop as a magical special prop. Others can only be added globally for all components. It disables sveltes unused class warnings.
+
+Svelte-css-rune is a much simpler library. It only replaces the $css rune and the referenced class with a unique class name. It does not touch other style at all. 
+It aims to be simpler and feel like the rest of svelte 5 syntax. It does not disable sveltes unused class warnings.
+
+svelte-preprocess-cssmodules is a great library if you need more features. This library is heavily inspired by it. 
+
+I created a pull request to add a this feature to svelte-preprocess-cssmodules, but this standalone library is more flexible and a lot simpler.
