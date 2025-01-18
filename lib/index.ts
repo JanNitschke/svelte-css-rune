@@ -2,6 +2,7 @@ import { parse, preprocess } from 'svelte/compiler';
 import type { AST, PreprocessorGroup, MarkupPreprocessor } from 'svelte/compiler';
 import { findReferencedClasses, transformCSS, transformRunes } from './walk.js';
 import MagicString from 'magic-string';
+import { prettyMessage } from "./error.js";
 
 
 declare global {
@@ -68,60 +69,14 @@ const markup: (options: Options) => MarkupPreprocessor = ({hash}) => ({ content,
 
 		// pretty print the error
 		err.filename = filename;
-		const e = new Error("\n\n[$css rune]: " + err.message + "\n\n");
 
 		// if the error is not from the compiler, throw it
-		if(err.start === undefined){
-			e.stack = err.stack;
-			if(err.detail){
-				e.message += err.detail;
-			}
-			throw e;
+		if(err.start === undefined || err.end === undefined){
+			throw err;
 		}
 
-		// if the error is from the compiler, pretty print it
-		e.message += filename + "\n\n";
-		const preError = content.substring(0, err.start);
-		const length = (err.end ?? err.start + 1) - err.start;
-		const preLines = preError.split("\n"); 
-		preLines.pop(); // get the lines before the error
-
-		const startLine = preLines.length; 
-		const lines = content.split("\n");
-		const line = lines[startLine].replaceAll("\t", " ");
-		// get the index of the start of the line.
-		const lineStart = preLines.reduce((acc, val) => acc + val.length, 0) + preLines.length; // add back the new line characters
-		const startColumn = err.start - lineStart;
-		const lineCountLength = startLine.toString().length;
-
-		// print the lines before the error
-		if(startLine > 1){
-			e.message += (startLine - 2).toString().padStart(lineCountLength, " ");
-			e.message += "|";
-			e.message += lines[startLine - 2].replaceAll("\t", " ");
-			e.message += "\n";
-		}
-		if(startLine > 0){
-			e.message += (startLine - 1).toString().padStart(lineCountLength, " ");
-			e.message += "|";
-			e.message += lines[startLine - 1].replaceAll("\t", " ");
-			e.message += "\n";
-		}
-		// print the line with the error
-		e.message += startLine.toString();
-		e.message += "|";
-		e.message += line;
-		e.message += "\n";
-		// mark the error range
-		e.message += " ".repeat(Math.max(startColumn, 0) + lineCountLength + 1);
-		e.message += "^".repeat(length);
-		e.message += "\n";
-		// print error details centered in the error range
-		if(err.detail){
-			e.message += " ".repeat(Math.floor(Math.max(startColumn +  lineCountLength + 1 +(length / 2) - (err.detail.length / 2), 0)));
-			e.message += err.detail;
-		}
-
+		const e = new Error("\n\n[$css rune]: " + err.message + "\n\n");
+		e.message = prettyMessage(filename, content, err);
 		delete e.stack 
 		throw e;
 	}
