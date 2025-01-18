@@ -36,7 +36,7 @@ function genHash(str: string) {
 	return (hash >>> 0).toString(36);
 }
 
-type Options = {
+export type Options = {
 	hash: (str: string) => string;
 }
 
@@ -130,9 +130,15 @@ export const processCssRune = (options: Partial<Options> = {}) => {
 	const defaultOptions: Options = {
 		hash: genHash
 	};
+	const o = {...defaultOptions, ...options};
+
+	// allow to override hash option with undefined to use the default hash function (for testing)
+	if(!o.hash){
+		o.hash = genHash;
+	}
 
 	return {
-		markup: markup({...defaultOptions, ...options})
+		markup: markup(o)
 	}
 }
 

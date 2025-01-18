@@ -91,7 +91,6 @@ describe("transformCSS", () => {
 	});
 	it("should transform only used classes", () => {
 		const {content, transformedClasses} = run(source + baseStyles);
-		console.log(transformedClasses)
 		expect(content).not.toInclude("unused-hash");
 		expect(content).not.toInclude(":global(unused");
 	});
