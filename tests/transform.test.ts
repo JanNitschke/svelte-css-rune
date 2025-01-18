@@ -1,8 +1,10 @@
 import processCssRune from "../lib/index.ts";
 import { describe, expect, it } from "bun:test";
-import { hash,  baseStyles} from "./dummy.ts";
+import { baseStyles} from "./dummy.ts";
 import { Processed } from "svelte/compiler";
 import { toDOM, toCSSOnly } from "./e2e.test.ts";
+
+const hash = () => "hash";
 
 const transform = (content) => processCssRune({hash}).markup({content, filename: "test.svelte"}) as Processed;
 
@@ -109,4 +111,60 @@ describe("preprocessor", () => {
       expect(getStyle(spans[1])?.color).toEqual("rebeccapurple");
   });
 
+  it("should fail on illegal mixed css selector", () => {
+    const exec = () => toDOM(`
+      <div class="container">
+        <p class={$css("test")}>
+          <span class={$css("inner")}>text</span>
+        </p>
+        <span class="test">test</span>
+      </div>
+      <div class={$css("container")}>
+        <p class="inner">inner</p>
+      </div>
+      <style>.container .test{ color: rebeccapurple; } .container .test .inner{ color: red; }</style>
+      `);
+
+      const exec2 = () => toDOM(`
+        <div class="local" />
+          <div class={$css("global1")} />
+           <div class={$css("global2")} />
+            <div class={$css("global3")} />
+             <div class={$css("global4")} />
+
+        <style>.global1 .global2 .global3 .local .local .global4{ color: rebeccapurple; }</style>
+        `);
+
+      const exec3 = () => toDOM(`
+        <div class="local">
+          <p class={$css("global")}>
+          </p>
+        </div>
+        <style>.global .local .global .local .local .global{ color: rebeccapurple; }</style>
+        `);
+
+      expect(exec).toThrow("Invalid class placement. Svelte only allows global classes at the beginning or end of a selector list.");
+      expect(exec2).not.toThrow();
+      expect(exec3).toThrow("Invalid class placement. Svelte only allows global classes at the beginning or end of a selector list.");
+
+  });
+
+  it("should detect incorrect usage with non class selectors", () => {
+    const exec = () => toDOM(`
+      <div data-container />
+      <div class={$css("container")} />
+      <div id="container" />
+
+      <style> div[data-container] .container #container { color: rebeccapurple; } </style>
+      `);
+
+      expect(exec).toThrow("Invalid class placement. Svelte only allows global classes at the beginning or end of a selector list.");
+  });
+
+  it("should fail on invalid components", () => {
+    const exec = () => transform(`
+      <<div />
+      `);
+      expect(exec).toThrow();
+  });
 });

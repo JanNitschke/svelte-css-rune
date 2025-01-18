@@ -18,7 +18,7 @@
     "url": "https://github.com/JanNitschke/svelte-css-rune"
   },
   "type": "module",
-  "version": "0.1.4",
+  "version": "0.2.0",
   "scripts": {
     "prebuild": "rm -rf dist/",
     "build": "npm run build:cjs && npm run build:esm",

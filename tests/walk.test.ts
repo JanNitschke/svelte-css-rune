@@ -104,7 +104,7 @@ describe("transformCSS", () => {
 	});
 	it("should duplicate styles if used by runes and native", () => {
 		const {content} = run(used + baseStyles);
-		expect(content).toInclude(".test{");
+		expect(content).toInclude(".test,");
 		expect(content).toInclude(":global(.test-hash)");
 	});
 
@@ -112,9 +112,14 @@ describe("transformCSS", () => {
 		expect(spy).toHaveBeenCalledTimes(0);
 	});
 
-	it("should warn if rule uses multiple classes that are used by rune and natively", () => {
-		run("<style>.test.test2{}</style>", new Map([["test", {start: 0, end: 0}], ["test2", {start: 0, end: 0}]]), new Set(["test", "test2"]));
-		expect(spy).toHaveBeenCalledTimes(1);
+	it("should fail on illegal mixed css selector", () => {
+		const globalClasses = new Map([["global1", {start: 0, end: 0}], ["global2", {start: 0, end: 0}],  ["global3", {start: 0, end: 0}], ["global4", {start: 0, end: 0}]]);
+		const exec = () => run("<style>.global1 .global2 .global3 .local .local .global4{ color: rebeccapurple; }</style>", globalClasses, new Set(["local", "test2"]));
+		const exec2 = () => run("<style>.global1 .global2 .global3 .local .local .global4{ color: rebeccapurple; }</style>", globalClasses, new Set(["global2", "test2"]));
+		const exec3 = () => run("<style>.global1 .local .global2 .local .local .global3{ color: rebeccapurple; }</style>", globalClasses, new Set(["local", "test2"]));
+		expect(exec).not.toThrowError();
+		expect(exec2).toThrowError();
+		expect(exec3).toThrowError();
 	});
 });
 

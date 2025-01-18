@@ -1,5 +1,3 @@
-export const hash = () => "hash";
-
 export const source = `<script module>
 	export const test = $css("test3");
 </script>

@@ -72,6 +72,10 @@ const markup: (options: Options) => MarkupPreprocessor = ({hash}) => ({ content,
 
 		// if the error is not from the compiler, throw it
 		if(err.start === undefined || err.end === undefined){
+			// this in an internal error
+			// this should never happen
+			// throw it to let the user know
+			// this line should always be unreachable and untested
 			throw err;
 		}
 
@@ -98,25 +102,3 @@ export const processCssRune = (options: Partial<Options> = {}) => {
 }
 
 export default processCssRune;
-
-
-
-/**
- * Create a group of preprocessors which will be processed in a linear order
- * Taken from: https://github.com/micantoine/svelte-preprocess-cssmodules
- * Tank you Antoine Michael
- * @param preprocessors list of preprocessors
- * @returns group of `markup` preprocessors
- */
-export const linearPreprocessor = (preprocessors: PreprocessorGroup[]): PreprocessorGroup[] => {
-	return preprocessors.map((p) => {
-	  return !p.script && !p.style
-		? p
-		: {
-			async markup({ content, filename }) {
-			  return preprocess(content, p, { filename });
-			},
-		  };
-	});
-};
-  
