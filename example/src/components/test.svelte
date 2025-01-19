@@ -1,13 +1,13 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
+	
+	let { children, class: className, onclick, buttonClass }:Props = $props();
 	interface Props {
 		children?: Snippet;
 		class?: string;
 		buttonClass?: string;
 		onclick?: () => void;
 	}
-	let { children, class: className, onclick, buttonClass }:Props = $props();
-
 </script>
 
 <div class={className}>

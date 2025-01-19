@@ -1,6 +1,7 @@
 import { walk, type Visitor } from "zimmerframe";
 import type { AST } from "svelte/compiler";
 import MagicString from "magic-string";
+import { printBelow, printLocation } from "./error.js";
 
 const RUNE_NAME = "$css";
 
@@ -56,7 +57,7 @@ const runeVisitor =
 
 export const findReferencedClasses = (ast: AST.Root) => {
 	const classes = new Map<string, { start: number; end: number }>();
-	const usedClasses = new Set<string>();
+	const usedClasses = new Map<string, { start: number; end: number }>();
 	const addClass = <T>(
 		node: SvelteFragments["CallExpression"],
 		value: string,
@@ -77,7 +78,7 @@ export const findReferencedClasses = (ast: AST.Root) => {
 			},
 			CallExpression: runeVisitor(addClass),
 			ClassDirective: (node, { next, state }) => {
-				usedClasses.add(node.name);
+				usedClasses.set(node.name, { start: node.start, end: node.end });
 				next(state);
 			},
 			Attribute: (node, { next, state }) => {
@@ -88,7 +89,7 @@ export const findReferencedClasses = (ast: AST.Root) => {
 						node.value[0].type === "Text"
 					) {
 						const values = processClasses(node.value[0].data);
-						values.forEach((val) => usedClasses.add(val));
+						values.forEach((val) => usedClasses.set(val, { start: node.start, end: node.end }));
 						next({ inClass: false });
 					} else {
 						next({ inClass: true });
@@ -102,10 +103,10 @@ export const findReferencedClasses = (ast: AST.Root) => {
 					if (prop.type === "Property") {
 						const key = prop.key;
 						if (key.type === "Literal") {
-							usedClasses.add(key.value?.toString() || "");
+							usedClasses.set(key.value?.toString() || "", { start: (node as any).start, end: (node as any).end });
 						}
 						if (key.type === "Identifier") {
-							usedClasses.add(key.name);
+							usedClasses.set(key.name, { start: (node as any).start, end: (node as any).end });
 						}
 					}
 				});
@@ -114,7 +115,7 @@ export const findReferencedClasses = (ast: AST.Root) => {
 			Literal: (node, { next, state }) => {
 				if (state.inClass) {
 					const values = processClasses((node as any).value);
-					values.forEach((val) => usedClasses.add(val));
+					values.forEach((val) => usedClasses.set(val, { start: (node as any).start, end: (node as any).end }));
 				}
 				next(state);
 			},
@@ -201,7 +202,7 @@ type ClassPlacement = "native"|"rune"|"mixed";
  * @param start start of the selector list, for error reporting
  * @param end end of the selector list, for error reporting
  */
-const validateClassPlacement = (otherSelectors: AST.BaseNode[], runeClasses:  SvelteFragments["ClassSelector"][], nativeClasses: Set<string>, start: number, end: number) => {
+const validateClassPlacement = (otherSelectors: AST.BaseNode[], runeClasses:  SvelteFragments["ClassSelector"][], nativeClasses: Map<string, { start: number; end: number }>, start: number, end: number) => {
 	const error = (cause: PlacedClass) => {
 		const e = new Error("Invalid class placement. Svelte only allows global classes at the beginning or end of a selector list.");
 		(e as any).start = start;
@@ -252,9 +253,28 @@ const validateClassPlacement = (otherSelectors: AST.BaseNode[], runeClasses:  Sv
 			error(cause ?? selector);
 		}
 	}
-	
-
 };
+
+const warnMixedUsage = (node: AST.BaseNode, filename: string|undefined, content: string, runeUsed: string[], runeNotUsed: string[]) => {
+	let warning = `[css rune]: This selector uses a combination of classes that are used with runes.`;
+	const selLoc = printLocation(filename, content, node.start, node.end);
+	warning += "\n\n" + selLoc.text;
+	warning += printBelow("combines selectors that are used with and without the $css rune", selLoc.startColumn);
+	if(runeUsed.length > 1){
+		warning += `\n\nThe classes ${runeUsed.join(", ")} are used with the $css rune.`;
+	}else{
+		warning += `\n\nThe class ${runeUsed[0]} is used with the $css rune.`;
+	}
+	if(runeNotUsed.length > 1){
+		warning += `\nThe selectors ${runeNotUsed.join(", ")} are not used with the $css rune.`;
+	}else{
+		warning += `\nThe selector ${runeNotUsed[0]} is not used with the $css rune.`;
+	}
+	warning += 'You can suppress this warning by setting the `mixedUseWarnings` to `false` or `"use"`.\n';
+	warning += "\nMore Information: https://github.com/JanNitschke/svelte-css-rune#edge-cases\n";
+	console.warn(warning);
+}
+
 
 /**
  *
@@ -266,6 +286,11 @@ const validateClassPlacement = (otherSelectors: AST.BaseNode[], runeClasses:  Sv
  * @param magicContent
  * @param globalClasses All classes where referenced by the rune and need to bo global
  * @param usedClasses All classes that are used in the svelte file and need to available
+ * @param hash A hash that is unique to the file
+ * @param fileName File name for error reporting
+ * @param fileContent Content of the file for error reporting
+ * @param emitWarnings If warnings should be emitted
+ * 
  * @returns
  */
 export const transformCSS = (
@@ -273,11 +298,12 @@ export const transformCSS = (
 	source: string,
 	magicContent: MagicString,
 	globalClasses: Map<string, { start: number; end: number }>,
-	usedClasses: Set<string>, 
+	usedClasses: Map<string, { start: number; end: number }>, 
 	hash: string,
-	fileName?: string|undefined
+	fileName: string|undefined, 
+	fileContent: string,
+	emitWarnings: boolean
 ):  Record<string, string> => {
-	const allClasses = new Set<string>();
 	const transformedClasses: Record<string, string> = {};
 	if (!ast.css) {
 		return transformedClasses;
@@ -295,6 +321,7 @@ export const transformCSS = (
 			},
 			Rule: (node, { next, state }) => {
 				ruleChangedClasses = [];
+				ruleUnchangedSelectors = [];
 				//walk all children to find all classes
 				next(state);
 				const selectors = node.prelude;
@@ -302,6 +329,7 @@ export const transformCSS = (
 				if(ruleChangedClasses.length > 0){
 					validateClassPlacement(ruleUnchangedSelectors, ruleChangedClasses, usedClasses, selectors.start, selectors.end);
 					if(ruleChangedClasses.some((val) => usedClasses.has(val.name))){
+					
 						const start = selectors.start;
 						const selectorString = source.substring(selectors.start, selectors.end);
 						const classMap: SelectorInfo[] = ruleChangedClasses.map((val) => ({
@@ -318,9 +346,15 @@ export const transformCSS = (
 							magicContent.overwrite(val.start, val.end, `:global(.${transformed})`);
 						});
 					}
+					if(emitWarnings){
+						if(ruleUnchangedSelectors.length > 0){
+							warnMixedUsage(selectors, fileName, fileContent,  ruleChangedClasses.map((val) => val.name), ruleUnchangedSelectors.map((val) => (val as any).name));
+						}
+					}
 				}
 				// reset classes
 				ruleChangedClasses = [];
+				ruleUnchangedSelectors = [];
 			},
 			ClassSelector: (node, { next, state }) => {
 				const name = node.name;

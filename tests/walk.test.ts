@@ -72,21 +72,22 @@ describe("findReferencedClasses", () => {
 
 });
 
+const loc = {start: 0, end: 0};
 
 describe("transformCSS", () => {
-	const run = (content: string, overrideClasses?: Map<string, {start: number, end: number}>, overrideUsedClasses?: Set<string>) => {
+	const run = (content: string, overrideClasses?: Map<string, {start: number, end: number}>, overrideUsedClasses?: Map<string, {start: number, end: number}>, warn = false) => {
 		const magicContent = new MagicString(content);
 		const ast = parse(content, { filename: "test.svelte", modern: true });
 		const h ="hash";
 		const {classes, usedClasses} = findReferencedClasses(ast);
-		const transformedClasses = transformCSS(ast, content, magicContent, overrideClasses ?? classes, overrideUsedClasses ?? usedClasses, h);
+		const transformedClasses = transformCSS(ast, content, magicContent, overrideClasses ?? classes, overrideUsedClasses ?? usedClasses, h, "test.svelte", content, warn);
 		return {content: magicContent.toString(), transformedClasses};
 	}
 
 	const spy = spyOn(console, "warn");
 
 	it("should transform only used classes", () => {
-		const {content} = run(baseStyles, new Map(), new Set([]));
+		const {content} = run(baseStyles, new Map(), new Map());
 		expect(content).toBe(baseStyles);
 	});
 	it("should transform only used classes", () => {
@@ -113,13 +114,31 @@ describe("transformCSS", () => {
 	});
 
 	it("should fail on illegal mixed css selector", () => {
-		const globalClasses = new Map([["global1", {start: 0, end: 0}], ["global2", {start: 0, end: 0}],  ["global3", {start: 0, end: 0}], ["global4", {start: 0, end: 0}]]);
-		const exec = () => run("<style>.global1 .global2 .global3 .local .local .global4{ color: rebeccapurple; }</style>", globalClasses, new Set(["local", "test2"]));
-		const exec2 = () => run("<style>.global1 .global2 .global3 .local .local .global4{ color: rebeccapurple; }</style>", globalClasses, new Set(["global2", "test2"]));
-		const exec3 = () => run("<style>.global1 .local .global2 .local .local .global3{ color: rebeccapurple; }</style>", globalClasses, new Set(["local", "test2"]));
+		const globalClasses = new Map([["global1", loc], ["global2", loc],  ["global3", loc], ["global4", loc]]);
+		const exec = () => run("<style>.global1 .global2 .global3 .local .local .global4{ color: rebeccapurple; }</style>", globalClasses, new Map([["local", loc], ["test2",loc]]));
+		const exec2 = () => run("<style>.global1 .global2 .global3 .local .local .global4{ color: rebeccapurple; }</style>", globalClasses, new Map([["global2", loc], ["test2",loc]]));
+		const exec3 = () => run("<style>.global1 .local .global2 .local .local .global3{ color: rebeccapurple; }</style>", globalClasses, new Map([["local", loc], ["test2",loc]]));
 		expect(exec).not.toThrowError();
 		expect(exec2).toThrowError();
 		expect(exec3).toThrowError();
+	});
+
+	it("should warn on mixed usage if mixedUseWarnings are enabled", () => {
+		const warn = spyOn(console, "warn");
+		const globalClasses = new Map([["global1", loc], ["global2", loc],  ["global3", loc], ["global4", loc]]);
+		const exec = () => run("<style>.global1 .global2{ color: rebeccapurple; }</style>", globalClasses, new Map([["local", loc], ["local2",loc]]), true);
+		const exec2 = () => run("<style>.local .local{ color: rebeccapurple; }</style>", globalClasses, new Map([["local", loc], ["local2",loc]]), true);
+		const exec3 = () => run("<style>.global1 .local{ color: rebeccapurple; }</style>", globalClasses, new Map([["local", loc], ["local2",loc]]), true);
+		const exec4 = () => run("<style>.global1 .local .local2  .global2{ color: rebeccapurple; }</style>", globalClasses, new Map([["local", loc], ["local2",loc]]), true);
+
+		expect(exec).not.toThrowError();
+		expect(warn).toHaveBeenCalledTimes(0);
+		expect(exec2).not.toThrowError();
+		expect(warn).toHaveBeenCalledTimes(0);
+		expect(exec3).not.toThrowError();
+		expect(warn).toHaveBeenCalledTimes(1);
+		expect(exec4).not.toThrowError();
+		expect(warn).toHaveBeenCalledTimes(2);
 	});
 });
 

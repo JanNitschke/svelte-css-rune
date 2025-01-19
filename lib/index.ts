@@ -1,8 +1,8 @@
-import { parse, preprocess } from 'svelte/compiler';
-import type { AST, PreprocessorGroup, MarkupPreprocessor } from 'svelte/compiler';
+import { parse } from 'svelte/compiler';
+import type { AST, MarkupPreprocessor } from 'svelte/compiler';
 import { findReferencedClasses, transformCSS, transformRunes } from './walk.js';
 import MagicString from 'magic-string';
-import { prettyMessage } from "./error.js";
+import { prettyMessage, printLocation, printBelow } from "./error.js";
 
 
 declare global {
@@ -39,9 +39,10 @@ function genHash(str: string) {
 
 export type Options = {
 	hash: (str: string) => string;
+	mixedUseWarnings: false|"use"|true;
 }
 
-const markup: (options: Options) => MarkupPreprocessor = ({hash}) => ({ content, filename }) => {
+const markup: (options: Options) => MarkupPreprocessor = ({hash, mixedUseWarnings}) => ({ content, filename }) => {
 	let ast: AST.Root;
 	try {
 	  ast = parse(content, { modern: true, filename });
@@ -57,7 +58,28 @@ const markup: (options: Options) => MarkupPreprocessor = ({hash}) => ({ content,
 		}
 		const hashed = hash(filename + content);
 		const magicContent = new MagicString(content);
-		const transformedClasses = transformCSS(ast, content, magicContent, classes, usedClasses, hashed, filename);
+		if(mixedUseWarnings){
+			classes.forEach(({start, end}, className) => {
+				const used = usedClasses.get(className);
+				if(used){
+					let warning = `[css rune]: The class "${className}" is used directly and with the $css rune. Consider using the $css rune for all classes.`;
+					const runeLoc = printLocation(filename, content, start, end, 3);
+					const usedLoc = printLocation("", content, used.start, used.end, 3);
+					warning += "\n\n" + runeLoc.text;
+					warning += printBelow("used with $css rune", runeLoc.startColumn);
+					warning += "\n" + usedLoc.text;
+					warning += printBelow("used without $css rune", usedLoc.startColumn);
+					warning += "\n\n";
+					warning += "You can suppress this warning by setting the `mixedUseWarnings` option to `false`.\n";
+					warning += "More Information: https://github.com/JanNitschke/svelte-css-rune#edge-cases \n";
+					warning += "\n";
+					console.warn(warning);
+				}
+			});
+		}
+
+
+		const transformedClasses = transformCSS(ast, content, magicContent, classes, usedClasses, hashed, filename, content, mixedUseWarnings === true);
 		transformRunes(ast, magicContent, classes, transformedClasses);
 		const code = magicContent.toString();
 
@@ -87,7 +109,8 @@ const markup: (options: Options) => MarkupPreprocessor = ({hash}) => ({ content,
 };
 export const processCssRune = (options: Partial<Options> = {}) => {
 	const defaultOptions: Options = {
-		hash: genHash
+		hash: genHash,
+		mixedUseWarnings: "use"
 	};
 	const o = {...defaultOptions, ...options};
 
