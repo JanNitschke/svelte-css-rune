@@ -341,25 +341,6 @@ All combinations that respect this will compile correctly.
 	color: red;
 }
 ```
-## Tree-structural pseudo-classes (mixed usage only)
-
-Keep in mind that the class generated the $css rune is different from the original. When combining the $css rune with native usage of the same class, the preprocessor will duplicate the rule to accommodate both. This can lead to issues with tree-structural pseudo-classes like `:first-child` and `:last-child`.
-
-In this example the rule will match both elements, as the generated class is different from the original. 
-
-```svelte
-<div class="outer">
-	<div class={$css("inner")}>
-	</div>
-	<div class="inner">
-</div>
-<style>
-	.outer .inner:first-child{
-		color: red;
-	}
-</style>
-```
-
 
 ## Dynamic class names (mixed usage only)
 
