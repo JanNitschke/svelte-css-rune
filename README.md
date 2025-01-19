@@ -119,25 +119,36 @@ Usage.svelte
 	pnpm add -D svelte-css-rune
 	```
 2) Add the preprocessor to your Svelte configuration. This is usually in `svelte.config.js`/`ts`, but can also be in `rollup.config.js`/`ts` or `vite.config.js`/`ts`. SvelteKit uses a `svelte.config.js`/`ts` file. 
-```javascript
-import cssRune from "svelte-css-rune";
-export default {
-	preprocess: cssRune(),
-	// Rest of the config
-}
-```
-If you are using other preprocessors, such as `svelte-preprocess`, you can pass an array of preprocessors. 
+	```javascript
+	import cssRune from "svelte-css-rune";
+	export default {
+		preprocess: cssRune(),
+		// Rest of the config
+		}
+	```
+	If you are using other preprocessors, such as `svelte-preprocess`, you can pass an array of preprocessors. 
 
-**The order is important**: `svelte-css-rune` should be the **LAST** one in the array."
-```javascript
-import cssRune from "svelte-css-rune";
-import preprocess from "svelte-preprocess";
-export default {
-	preprocess: [preprocess(), cssRune()],
-	// Rest of the config
-}
-```
-3) Use the `$css` rune in your components. 
+	**The order is important**: `svelte-css-rune` should be the **LAST** one in the array."
+	```javascript
+	import cssRune from "svelte-css-rune";
+	import preprocess from "svelte-preprocess";
+	export default {
+		preprocess: [preprocess(), cssRune()],
+		// Rest of the config
+	}
+	```
+
+3) You can pass options to the preprocessor. For a list of options see the [Options](#Options) section. 
+	```javascript
+	import cssRune from "svelte-css-rune";
+	export default {
+		preprocess: cssRune({
+			mixedUseWarnings: true
+		}),
+		// Rest of the config
+	}
+	```
+4) Use the `$css` rune in your components. 
 
 
 See the [Typescript](#Typescript) section for typescript support.
