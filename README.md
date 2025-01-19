@@ -1,5 +1,10 @@
 # svelte-css-rune
 
+[![npm version](https://img.shields.io/npm/v/svelte-css-rune.svg)](https://www.npmjs.com/package/svelte-css-rune)
+[![npm downloads](https://img.shields.io/npm/dm/svelte-css-rune.svg)](https://www.npmjs.com/package/svelte-css-rune)
+[![Test Status](https://img.shields.io/github/actions/workflow/status/JanNitschke/svelte-css-rune/test.yml?branch=main)](https://github.com/JanNitschke/svelte-css-rune/actions)
+
+
 **`svelte-css-rune` is a Svelte library that allows you to effortlessly pass styles between components by introducing a new `$css` rune.**
 
 Svelte provides an elegant way to scope styles to components, but passing styles between parent and child components can be challenging. There's no built-in mechanism for this, often leading to workarounds like declaring classes as global and carefully managing potential naming conflicts. This library introduces a simple way to pass styles between components. It solves the problem of style conflicts and promotes better style encapsulation when working with nested components.
