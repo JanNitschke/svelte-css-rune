@@ -1,6 +1,10 @@
 # svelte-css-rune
 
-Svelte provides an elegant way to scope styles to components, but passing styles between parent and child components can be challenging. There's no built-in mechanism for this, often leading to workarounds like declaring classes as global and carefully managing potential naming conflicts. This library introduces a simple way to pass styles between components using the `$css` rune, which is achieved with a preprocessor. It solves the problem of style conflicts and promotes better style encapsulation when working with nested components.
+**`svelte-css-rune` is a Svelte library that allows you to effortlessly pass styles between components by introducing a new `$css` rune.**
+
+Svelte provides an elegant way to scope styles to components, but passing styles between parent and child components can be challenging. There's no built-in mechanism for this, often leading to workarounds like declaring classes as global and carefully managing potential naming conflicts. This library introduces a simple way to pass styles between components. It solves the problem of style conflicts and promotes better style encapsulation when working with nested components.
+
+The `$css` rune creates a globally unique class name for a given class, ensuring that it is unique to the file and the original class name. The style tag is modified to use the generated class name, and the class is made globally accessible with the `:global` selector. If the same class is used both with the `$css` rune and without it, the preprocessor respects both usages, ensuring that the styles are applied correctly.
 
 ## Example
 
@@ -32,9 +36,69 @@ Parent.svelte
 </style>
 ```
 
+### Use with component libraries
+
+This library was designed for component libraries. Effortlessly customize the style of your components!
+
+#### Customizing Existing Components
+
+```svelte
+<script lang="ts">
+  import { Button } from "bits-ui";
+</script>
+
+<Button.Root class={$css("button")}>
+  Unlimited
+</Button.Root>
+
+<style>
+  .button {
+	color: red;
+  }
+</style>
+```
+
+#### Creating Customizable Components
+
+Popup.svelte
+```svelte
+<script>
+  let {cardClass, buttonClass} = $props();
+</script>
+<div class={["card",cardClass]} >
+  <button class={["button",containerClass]} />
+</div>
+<style>
+  .card{
+	// Your default styles
+  }
+  .button{
+	// Your default styles
+  }
+</style>
+```
+
+
+Usage.svelte
+```svelte
+<script>
+  let {containerClass, buttonClass} = $props();
+</script>
+
+<Popup containerClass={$css("container")} buttonClass={$css("button")} />
+
+<style>
+  .container{
+	// Additional styles
+  }
+  .button{
+	flex-grow: 1;
+  }
+</style>
+```
 # Install
 
-Svelte 5 is required, but it is compatible with both rune and legacy syntaxes.
+### **Svelte 5** is required, but it is compatible with both rune and legacy syntaxes. 
 
 1) Add `svelte-css-rune` as devDependency. Use the appropriate command for your package manager:
 	```bash
@@ -50,28 +114,37 @@ Svelte 5 is required, but it is compatible with both rune and legacy syntaxes.
 	pnpm add -D svelte-css-rune
 	```
 2) Add the preprocessor to your Svelte configuration. This is usually in `svelte.config.js`/`ts`, but can also be in `rollup.config.js`/`ts` or `vite.config.js`/`ts`. SvelteKit uses a `svelte.config.js`/`ts` file. 
-	```javascript
-	import cssRune from "svelte-css-rune";
-	export default {
-		preprocess: cssRune(),
-		// Rest of the config
-	}
-	```
-	If you are using other preprocessors, such as `svelte-preprocess`, you can pass an array of preprocessors. 
-	
-	**The order is important**: `svelte-css-rune` should be the last one in the array."
-	```javascript
-	import cssRune from "svelte-css-rune";
-	import preprocess from "svelte-preprocess";
-	export default {
-		preprocess: [preprocess(), cssRune()],
-		// Rest of the config
-	}
-	```
+```javascript
+import cssRune from "svelte-css-rune";
+export default {
+	preprocess: cssRune(),
+	// Rest of the config
+}
+```
+If you are using other preprocessors, such as `svelte-preprocess`, you can pass an array of preprocessors. 
+
+**The order is important**: `svelte-css-rune` should be the **LAST** one in the array."
+```javascript
+import cssRune from "svelte-css-rune";
+import preprocess from "svelte-preprocess";
+export default {
+	preprocess: [preprocess(), cssRune()],
+	// Rest of the config
+}
+```
 3) Use the `$css` rune in your components. 
+
 
 See the [Typescript](#Typescript) section for typescript support.
 You can find a svelte kit example in the [example](example) folder.
+
+# Options
+
+The preprocessor can be configured with the following options:
+
+- `mixedUseWarnings` (default: `"use"`): Emit warnings when a class is used with the $css rune and without it. Setting this to `true` will warn on mixed usage in script tags, markup and when defining mixed css rules. Setting it to `"use"` will not warn when defining mixed css rules. Setting it to `false` will disable all warnings.
+
+- `hash` can be used to override the hash function. Expects a function that takes a string and returns a string. The default hash function is the same svelte uses.
 
 # How it works and advanced usage
 
@@ -137,6 +210,7 @@ This preprocessor does not interfere with or disable Svelte's unused class warni
 204| const className = $css("i-dont-exist")
                        ^^^^^^^^^^^^^^^^^^^^
                 class i-dont-exist is not defined
+
 ```
 
 
@@ -200,113 +274,105 @@ to every file where the rune is used.
 
 # Edge Cases
 
-### Note: The following edge case is unlikely to affect most users. It's included for completeness and transparency. If you haven't been directed here by a warning from the preprocessor, you can likely skip this section.
+Edge cases will only occur when mixing `$css` rune with native class usage. The preprocessor will emit a warning if mixed usage is detected. It will fail if it detects an edge case that it cannot handle.
 
-## Rules combining multiple classes with mixed usage
+## Warning: Mixed usage of $css rune and native class
 
-CSS rules combining multiple selectors, where more than one are used both natively by Svelte and with the `$css` rune, can lead to unintended behavior. The preprocessor will emit a warning when it detects this usage. It's recommended to use the `$css` rune consistently for all occurrences of a class within a file.
+__If you adhere to this warning you will not encounter any of these issues.__
 
 
-## What this issue looks like
 
-For example, when writing a component with mixed usage like this:
+The preprocessor will emit a warning if it detects mixed usage of the `$css` rune and native class usage. This is not recommended, as it can lead to larger bundle sizes and potential issues. This warning can be safely ignored if you are aware of the implications and can be suppressed with the `mixedUseWarnings` option. 
+### Note: The following edge cases is unlikely to affect most users. It's included for completeness and transparency. If you haven't been directed here by a warning from the preprocessor, you can likely skip this section.
+
+## Rules with multiple native and $css rune classes (mixed usage only)
+
+Svelte has a limitation on global selectors. Global selectors need to be at the beginning or end of a selector list. This means that a rule like this:
+
+```css	
+// NOT OK
+.used-with-rune .used-natively .used-with-rune .used-natively {
+	color: red;
+}
+``` 
+will not work. The preprocessor will detect this and issue a warning. Non class selectors count as native selectors.
+```css	
+// NOT OK
+.used-with-rune #some-id .used-with-rune div{
+	color: red;
+}
+``` 
+If you use :global in the selector you might not get an error from the preprocessor, but from the svelte compiler. 
+
+```css	
+// OK
+.used-with-rune #some-id .used-with-rune :global(div){
+	color: red;
+}
+// NOT OK
+.used-with-rune #some-id .used-with-rune :global(div) .used-natively{
+	color: red;
+}
+``` 
+All combinations that respect this will compile correctly. 
+
+```css	
+// OK
+.used-with-rune .used-with-rune .used-natively #used-natively .used-with-rune .used-rune {
+	color: red;
+}
+
+## Tree-structural pseudo-classes (mixed usage only)
+
+Keep in mind that the class generated the $css rune is different from the original. When combining the $css rune with native usage of the same class, the preprocessor will duplicate the rule to accommodate both. This can lead to issues with tree-structural pseudo-classes like `:first-child` and `:last-child`.
+
+In this example the rule will match both elements, as the generated class is different from the original. 
 
 ```svelte
 <div class="outer">
 	<div class={$css("inner")}>
-	</div> 
-</div> 
-<div class={$css("outer")}>
-	<div class={$css("inner")}>
-	</div> 
-</div>
-<style>
-	.outer .inner{
-		color: red;
-	}
-</style>
-```
-
-Everything works fine. This is compiled to:
-```svelte
-<div class="outer">
-	<div class={"inner-1oseexr"}>
-	</div> 
-</div> 
-<div class={"outer-1oseexr"}>
-	<div class={"inner-1oseexr"}>
-	</div> 
-</div>
-<style>
-	:global(.outer-1oseexr) :global(.inner-1oseexr){
-		color: red;
-	}
-	.outer :global(.inner-1oseexr){
-		color: red;
-
-	}
-</style>
-```
-All classes work as expected; the rule has been duplicated to accommodate the mixed usage. This works initially because only one of the classes, `outer`, is used both with the `$css` rune and natively. If we now introduce native usage of the `inner` class:
-
-```svelte
-<div class="outer">
-	<div class={$css("inner")}>
-	</div> 
-</div> 
-<div class={$css("outer")}>
+	</div>
 	<div class="inner">
-	</div> 
 </div>
 <style>
-	.outer .inner{
+	.outer .inner:first-child{
 		color: red;
 	}
 </style>
 ```
-### It Breaks! This is compiled to:
-```svelte
-<div class="outer">
-	<div class={"inner-1oseexr"}>
-	</div> 
-</div> 
-<div class={"outer-1oseexr"}>
-	<div class="inner">
-	</div> 
-</div>
-<style>
-	:global(.outer-1oseexr) :global(.inner-1oseexr){
-		color: red;
-	}
-	.outer .inner{
-		color: red;
-	}
-</style>
-```
-Notice that no rule matches anymore! This issue is unlikely to occur in most codebases, as it's generally best to avoid mixing the usage of classes between $css runes and native Svelte style application. The preprocessor will warn you when this situation occurs, but the warning is over aggressive and will trigger even in cases where it's not an issue. The following code will trigger the same warning, even though it's technically working:
+
+
+## Dynamic class names (mixed usage only)
+
+The preprocessors only detects native usage of the class name if known at compile time. If you use a dynamic class name, the preprocessor will not detect it. If you use a class name dynamically and with the $css rune, the preprocessor not duplicate the rule. The dynamic class name will not work anymore. 
 
 ```svelte
-<div class={$css("outer")}>
-	<div class={$css("inner")}>
-	</div> 
-</div> 
-<div class="outer">
-	<div class="inner">
-	</div> 
-</div>
-<style>
-	.outer .inner{
-		color: red;
-	}
-</style>
+// NOT OK
+<script>
+	let dark = false;
+	let className = dark?"black":"white";
+</script>
+<div class={$css("black")}></div>
+<div class={className}></div>  
 ```
-Encountering this warning is a good opportunity to refactor your code to avoid mixing the usage of classes between `$css` runes and native Svelte class application.
+This will cause the second div to not have the correct styles. Avoid mixing dynamic class names with the $css rune. 
+The preprocessor can handle dynamic class names if they are defined inside the element.
 
-### How to fix it
+```svelte
+// OK
+<script>
+	let dark = true;
+</script>
+<div class={$css("black")}></div>
+<div class={dark?"black":"white"}></div> 
+<!-- OR -->
+<div class={{black: dark, white: !dark }}></div> 
+```
 
-Just wrap all usages of these classes with the `$css` rune. Creating a renamed copy of one class and replacing only native or `$css` rune references to it works, too.
 
 ## Building and Testing
+
+### Building
 
 You can build this library using either Node.js or Bun via the build script. It compiles to both ESM and CommonJS formats.
 ```bash
@@ -315,10 +381,18 @@ npm run build
 ```bash
 bun run build
 ```
+### Tests
 Bun is required to run the tests.
 ```bash
 bun test
 ```
+
+This library contains end-to-end tests that verify the functionality of the preprocessor. The transform tests executes the generated svelte components and makes sure the styles are applied correctly.
+
+The walk tests check all stages of the preprocessor to avoid regressions.
+
+All errors and warnings are tested.
+
 
 # Comparison to svelte-preprocess-cssmodules
 
@@ -331,7 +405,7 @@ It aims for simplicity and a seamless integration with the rest of the Svelte 5 
 
 `svelte-preprocess-cssmodules` is a great library if you require more extensive features. This library draws significant inspiration from it.
 
-While I initially created a pull request to add this feature to `svelte-preprocess-cssmodules`, this standalone library offers greater flexibility and simplicity
+While I initially created a pull request to add this feature to `svelte-preprocess-cssmodules`, I decided to create this separate library for a more focused and simpler approach. 
 
 # License
 
