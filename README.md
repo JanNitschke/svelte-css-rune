@@ -239,6 +239,7 @@ Consider a component with mixed usage like this:
 	<Child class={$css("inner")}/> 
 </div> 
 <Child class={$css("child")}/>
+<button class="child"/>
 <style>
 	.outer .inner{
 		color: red;
@@ -249,17 +250,19 @@ Consider a component with mixed usage like this:
 </style>
 ```
 
-Everything works fine. This is compiled to:
+All styles just work! This is compiled to:
+
 ```svelte
 <div class="outer">
 	<Child class={"inner-1oseexr"}/> 
 </div> 
 <Child class={"child-1oseexr"}/>
+<button class="child"/>
 <style>
 	.outer :global(.inner-1oseexr){
 		color: red;
 	}
-	.child{
+	.child, :global(.child-1oseexr){
 		color: blue;
 	}
 </style>
@@ -337,7 +340,7 @@ All combinations that respect this will compile correctly.
 .used-with-rune .used-with-rune .used-natively #used-natively .used-with-rune .used-rune {
 	color: red;
 }
-
+```
 ## Tree-structural pseudo-classes (mixed usage only)
 
 Keep in mind that the class generated the $css rune is different from the original. When combining the $css rune with native usage of the same class, the preprocessor will duplicate the rule to accommodate both. This can lead to issues with tree-structural pseudo-classes like `:first-child` and `:last-child`.
