@@ -105,7 +105,7 @@ describe("transformCSS", () => {
 	});
 	it("should duplicate styles if used by runes and native", () => {
 		const {content} = run(used + baseStyles);
-		expect(content).toInclude(".test,");
+		expect(content).toMatch(/test[^-]/g);
 		expect(content).toInclude(":global(.test-hash)");
 	});
 

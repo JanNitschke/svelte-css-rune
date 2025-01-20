@@ -149,11 +149,71 @@ export const findReferencedClasses = (ast: AST.Root) => {
 };
 
 
+
+/**
+ * Group following global selectors that are chained like .class1.class2
+ */
+const groupChained = <T extends {chain?: number, start: number, end: number}>(selectors: T[]):T[][] => {
+	const groups: T[][] = [];
+	let current: T[] = [];
+	let currentChain = 0;
+	
+	selectors.forEach((selector) => {
+		if((selector as any).chain === undefined){
+			groups.push([selector]);
+			return;
+		}
+		if((selector as any).chain === currentChain){
+			current.push(selector);
+		}else{
+			current = [selector];
+			groups.push(current);
+			currentChain = (selector as any).chain;
+		}
+	});
+	return groups;
+}
+
 type SelectorInfo = {
 	start: number
 	end: number,
 	original: string,
-	transformed: string
+	transformed: string,
+	chain?: number
+}
+
+/**
+ * Group following global selectors that are chained like .class1.class2
+ * Expects a list that indicates if the a selector will be transformed
+ */
+const groupPermutations = (selectors: SelectorInfo[], permutations: boolean[]) => {
+	const groups: SelectorInfo[][] = [];
+	let current: SelectorInfo[] = [];
+	let currentChain = 0; 
+	// keep track of the last character we have seen, to split on selectors we don't transform
+	let lastChar = 0;
+	selectors.forEach((selector, idx) => {
+		if((selector as any).chain === undefined || !permutations[idx]){
+			groups.push([selector]);
+			currentChain = 0;
+			lastChar = selector.end;
+			return;
+		}
+		if(selector.chain === currentChain && selector.start == lastChar && permutations[idx]){
+			current.push(selector);
+		}else{
+			if(permutations[idx]){
+				current = [selector];
+				groups.push(current);
+				currentChain = (selector as any).chain;
+			}else{
+				groups.push([selector]);
+				currentChain = 0;
+			}
+		} 
+		lastChar = selector.end;
+	});
+	return groups;
 }
 
 /**
@@ -161,6 +221,8 @@ type SelectorInfo = {
  * 
  * Unfortunately the svelte compiler does only allow global selectors at the beginning or end of a selector list.
  * This function is capable of creating all possible permutations should this limitation be removed in the future.
+ * 
+ * ToDo: Analyze possible selector combinations and remove unreachable groups
  * 
  * @param content selector list as string
  * @param selectors information about varying selectors
@@ -174,11 +236,27 @@ const createPermutations = (content: string, selectors: SelectorInfo[]) => {
 		permutations.push(permutation);
 	}
 	const rules:string[] = [];
-	permutations.forEach((permutation) => {
+	// start with global selectors, so we don'r run into the the max depth of svelte dead code elimination
+	permutations.reverse();
+	permutations.forEach((permutation, i) => {
 		const magicRule = new MagicString(content);
-		selectors.forEach((selector, index) => {
-			if (permutation[index]) {
-				magicRule.overwrite(selector.start, selector.end, selector.transformed);
+		const groups = groupPermutations(selectors, permutation);
+		let idx = 0;
+		groups.forEach((group) => {
+			const transformGroup = permutation[idx];
+			const groupStart = group[0].start;
+			const groupEnd = group[group.length - 1].end;
+			let groupVal = new MagicString(content.substring(groupStart, groupEnd));
+			if(transformGroup){
+				group.forEach((val) => {
+					if(permutation[idx] != transformGroup){
+						// groups need to consist of classes that are all transformed or all not transformed
+						throw new Error("Invalid permutation");
+					}
+					groupVal.overwrite(val.start - groupStart, val.end - groupStart, val.transformed);
+					idx++;
+				});
+				magicRule.overwrite(groupStart, groupEnd, `:global(${groupVal.toString()})`);
 			}
 		});
 		rules.push(magicRule.toString());
@@ -311,6 +389,8 @@ export const transformCSS = (
 
 	let ruleChangedClasses: SvelteFragments["ClassSelector"][] = [];
 	let ruleUnchangedSelectors: AST.BaseNode[] = [];
+	let ruleChained = false; // detect .class1.class1 selectors to wrap them into a single global class
+	let chain = 0;
 
 	walk<AST.CSS.Node, { inRune?: boolean; inRule?: boolean }>(
 		ast.css,
@@ -336,15 +416,27 @@ export const transformCSS = (
 							start: val.start - start,
 							end: val.end - start,
 							original: val.name,
-							transformed: `:global(.${transformedClasses[val.name]})`
+							chain: (val as any).chain,
+							transformed: `.${transformedClasses[val.name]}`
 						}));
 						const permutations = createPermutations(selectorString, classMap);
 						magicContent.overwrite(selectors.start, selectors.end, permutations);
 					}else{
-						ruleChangedClasses.forEach((val) => {
-							const transformed = transformedClasses[val.name];
-							magicContent.overwrite(val.start, val.end, `:global(.${transformed})`);
+						const groups = groupChained(ruleChangedClasses as (SvelteFragments["ClassSelector"]&{chain: undefined})[]);
+						groups.forEach((group) => {
+							let start = group[0].start;
+							let end = group[group.length - 1].end;
+							group.forEach((val) => {
+								const transformed = transformedClasses[val.name];
+								magicContent.overwrite(val.start, val.end, `.${transformed}`);
+							});
+							magicContent.appendLeft(start, ":global(");
+							magicContent.appendRight(end, ")");
 						});
+						// ruleChangedClasses.forEach((val) => {
+						// 	const transformed = transformedClasses[val.name];
+						// 	magicContent.overwrite(val.start, val.end, `:global(.${transformed})`);
+						// });
 					}
 					if(emitWarnings){
 						if(ruleUnchangedSelectors.length > 0){
@@ -356,8 +448,21 @@ export const transformCSS = (
 				ruleChangedClasses = [];
 				ruleUnchangedSelectors = [];
 			},
+			RelativeSelector: (node, { next, state }) => {
+				if(node.selectors.length > 1){
+					ruleChained = true;
+					chain++;
+					next(state);
+					ruleChained = false;
+				}else{
+					next(state);
+				}
+			},
 			ClassSelector: (node, { next, state }) => {
 				const name = node.name;
+				if(ruleChained){
+					(node as any).chain = chain;
+				}
 				if (globalClasses.has(name)) {
 					ruleChangedClasses.push(node);
 					const transformed = `${name}-${hash}`;

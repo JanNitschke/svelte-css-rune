@@ -6,7 +6,7 @@ import { toDOM, toCSSOnly } from "./e2e.test.ts";
 
 const hash = () => "hash";
 
-const transform = (content) => processCssRune({hash}).markup({content, filename: "test.svelte"}) as Processed;
+const transform = (content, warn = false) => processCssRune({hash, mixedUseWarnings: warn}).markup({content, filename: "test.svelte"}) as Processed;
 
 describe("preprocessor", () => {
 
@@ -109,6 +109,25 @@ describe("preprocessor", () => {
       const spans = document.querySelectorAll("span");
       expect(getStyle(spans[0])?.color).toEqual("rebeccapurple");
       expect(getStyle(spans[1])?.color).toEqual("rebeccapurple");
+  });
+  it("should allow chaining of global classes", () => {
+    const { document, getStyle } = toDOM(`
+      <span class={$css("test container")}>test</span>
+      <style>.container.test{ color: rebeccapurple } .container .test{ color: red }</style>
+      `);
+      const span = document.querySelector("span");
+      expect(getStyle(span)?.color).toEqual("rebeccapurple");
+  });
+  
+  it("should allow chaining of global and local classes", () => {
+    const { document, getStyle } = toDOM(`
+      <script> const t = ''; </script>
+      <div class="mixed">test</div>
+      <span class="{$css("container test")} local {$css("mixed")}">test</span>
+      <style>.container.test.local.mixed{ color: rebeccapurple } .container .test{ color: red }</style>
+      `);
+      const span = document.querySelector("span");
+      expect(getStyle(span)?.color).toEqual("rebeccapurple");
   });
 
   it("should fail on illegal mixed css selector", () => {
