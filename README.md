@@ -11,6 +11,8 @@ Svelte provides an elegant way to scope styles to components, but passing styles
 
 The `$css` rune creates a globally unique class name for a given class, ensuring that it is unique to the file and the original class name. The style tag is modified to use the generated class name, and the class is made globally accessible with the `:global` selector. If the same class is used both with the `$css` rune and without it, the preprocessor respects both usages, ensuring that the styles are applied correctly.
 
+`svelte-css-rune` does not support css nesting. If you want to use css nesting please use a preprocessor that compiles this to normal css, ex. scss.
+
 ## Example
 
 Child.svelte
