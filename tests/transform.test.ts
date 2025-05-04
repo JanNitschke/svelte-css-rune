@@ -50,6 +50,21 @@ describe("preprocessor", () => {
     expect(getStyle(childButton)?.color).toEqual("red");
   });
 
+  it("should make generated rules more specific than the svelte default when using increaseSpecificity", () => {
+    const { document, getStyle } = toDOM(
+      `
+      <script> const { Child } = env; </script>
+      <Child buttonClass={$css("test")} />
+      <style>
+      .test{ border: none }
+      </style>`,
+      { env: ["Child.svelte"], increaseSpecificity: true }
+    );
+    const childButton = document.querySelector("#child-button");
+    console.log(document.body.innerHTML, document.head.innerHTML);
+    expect(getStyle(childButton)?.border).toInclude("none");
+  });
+
   it("should avoid style collisions", () => {
     const { document, getStyle } = toDOM(
       `

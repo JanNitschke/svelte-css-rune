@@ -143,7 +143,8 @@ Usage.svelte
 	import cssRune from "svelte-css-rune";
 	export default {
 		preprocess: cssRune({
-			mixedUseWarnings: true
+			mixedUseWarnings: true,
+			increaseSpecificity: true
 		}),
 		// Rest of the config
 	}
@@ -161,6 +162,9 @@ The preprocessor can be configured with the following options:
 - `mixedUseWarnings` (default: `"use"`): Emit warnings when a class is used with the $css rune and without it. Setting this to `true` will warn on mixed usage in script tags, markup and when defining mixed css rules. Setting it to `"use"` will not warn when defining mixed css rules. Setting it to `false` will disable all warnings.
 
 - `hash` can be used to override the hash function. Expects a function that takes a string and returns a string. The default hash function is the same svelte uses.
+
+- `increaseSpecificity` if true the generated class will be a combined class selector that has higher specificity then svelte native class selectors.
+  Set this to true if you want to override local styles with rune styles.
 
 # How it works and advanced usage
 

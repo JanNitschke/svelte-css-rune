@@ -261,7 +261,11 @@ const groupPermutations = (
  * @param selectors information about varying selectors
  * @returns a string containing all possible permutations of the selectors
  */
-const createPermutations = (content: string, selectors: SelectorInfo[]) => {
+const createPermutations = (
+  content: string,
+  selectors: SelectorInfo[],
+  addRuneClasses: string[]
+) => {
   const count = selectors.length;
   const permutations: boolean[][] = [];
   for (let i = 0; i < 2 ** count; i++) {
@@ -300,7 +304,11 @@ const createPermutations = (content: string, selectors: SelectorInfo[]) => {
         magicRule.overwrite(
           groupStart,
           groupEnd,
-          `:global(${groupVal.toString()})`
+          `:global(${
+            addRuneClasses?.length > 0
+              ? addRuneClasses.map((c) => "." + c).join("")
+              : ""
+          }${groupVal.toString()})`
         );
       }
     });
@@ -480,7 +488,8 @@ export const transformCSS = (
   hash: string,
   fileName: string | undefined,
   fileContent: string,
-  emitWarnings: boolean
+  emitWarnings: boolean,
+  addRuneClasses: string[]
 ): Record<string, string> => {
   const transformedClasses: Record<string, string> = {};
   if (!ast.css) {
@@ -528,7 +537,12 @@ export const transformCSS = (
               chain: (val as any).chain,
               transformed: `.${transformedClasses[val.name]}`,
             }));
-            const permutations = createPermutations(selectorString, classMap);
+            const permutations = createPermutations(
+              selectorString,
+              classMap,
+              addRuneClasses
+            );
+            console.log("permutations", permutations);
             magicContent.overwrite(
               selectors.start,
               selectors.end,
@@ -547,7 +561,14 @@ export const transformCSS = (
                 const transformed = transformedClasses[val.name];
                 magicContent.overwrite(val.start, val.end, `.${transformed}`);
               });
-              magicContent.appendLeft(start, ":global(");
+              magicContent.appendLeft(
+                start,
+                `:global(${
+                  addRuneClasses?.length > 0
+                    ? addRuneClasses.map((c) => "." + c).join("")
+                    : ""
+                }`
+              );
               magicContent.appendRight(end, ")");
             });
             // ruleChangedClasses.forEach((val) => {
@@ -624,7 +645,8 @@ export const transformRunes = (
   ast: AST.Root,
   magicContent: MagicString,
   classes: Map<string, { start: number; end: number }>,
-  classNames: Record<string, string>
+  classNames: Record<string, string>,
+  addRuneClasses: string[]
 ) => {
   const replaceClass = <T>(
     node: SvelteFragments["CallExpression"],
@@ -649,7 +671,9 @@ export const transformRunes = (
     magicContent.overwrite(
       positions.start,
       positions.end,
-      `"${transformedValue}"`
+      `"${
+        addRuneClasses?.length > 0 ? addRuneClasses.join(" ") + " " : ""
+      }${transformedValue}"`
     );
     return state;
   };
